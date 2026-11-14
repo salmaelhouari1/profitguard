@@ -1,0 +1,228 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  fullName     String
+  passwordHash String
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  memberships  Membership[]
+  auditLogs    AuditLog[]
+
+  @@map("users")
+}
+
+model Organization {
+  id          String       @id @default(uuid())
+  name        String
+  slug        String       @unique
+  billingPlan String       @default("starter")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  memberships Membership[]
+  workspaces  Workspace[]
+
+  @@map("organizations")
+}
+
+model Membership {
+  id             String       @id @default(uuid())
+  organizationId String
+  userId         String
+  role           String       // owner, admin, financial_analyst, viewer
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@map("memberships")
+}
+
+model Workspace {
+  id                String             @id @default(uuid())
+  organizationId    String
+  name              String
+  isDemo            Boolean            @default(false)
+  currency          String             @default("USD")
+  timezone          String             @default("UTC")
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  stores            Store[]
+  orders            Order[]
+  products          Product[]
+  expenses          Expense[]
+  marketingChannels MarketingChannel[]
+  inventoryItems    InventoryItem[]
+  risks             Risk[]
+  alerts            Alert[]
+  auditLogs         AuditLog[]
+
+  @@map("workspaces")
+}
+
+model Store {
+  id                   String    @id @default(uuid())
+  workspaceId          String
+  platform             String    // shopify, woocommerce, csv_import, demo_simulation
+  storeName            String
+  storeDomain          String?
+  currency             String    @default("USD")
+  status               String    @default("pending") // active, disconnected, error, pending
+  encryptedCredentials String?
+  lastSyncedAt         DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("stores")
+}
+
+model Order {
+  id           String    @id @default(uuid())
+  workspaceId  String
+  orderNumber  String
+  product      String
+  date         String
+  revenue      Float
+  cogs         Float
+  shipping     Float
+  discount     Float     @default(0)
+  profit       Float
+  margin       Float
+  status       String    // fulfilled, pending, refunded, at_risk
+  marginStatus String    // healthy, low, negative, missing
+  currency     String    @default("USD")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, orderNumber])
+  @@map("orders")
+}
+
+model Product {
+  id                 String    @id @default(uuid())
+  workspaceId        String
+  name               String
+  sku                String
+  revenue            Float     @default(0)
+  cogs               Float     @default(0)
+  contributionProfit Float     @default(0)
+  margin             Float     @default(0)
+  unitsSold          Int       @default(0)
+  status             String    // healthy, low, negative, missing
+  trend              String    @default("stable") // up, down, stable
+  trendValue         Float     @default(0)
+  currency           String    @default("USD")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  workspace          Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, sku])
+  @@map("products")
+}
+
+model Expense {
+  id          String    @id @default(uuid())
+  workspaceId String
+  category    String
+  description String
+  amount      Float
+  date        String
+  type        String    // fixed, variable, one-time
+  currency    String    @default("USD")
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("expenses")
+}
+
+model MarketingChannel {
+  id                   String    @id @default(uuid())
+  workspaceId          String
+  name                 String
+  spend                Float     @default(0)
+  attributedRevenue    Float     @default(0)
+  roas                 Float     @default(0)
+  breakEvenRoas        Float     @default(0)
+  contributionAfterAds Float     @default(0)
+  status               String    // profitable, break-even, unprofitable
+  currency             String    @default("USD")
+  createdAt            DateTime  @default(now())
+  workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("marketing_channels")
+}
+
+model InventoryItem {
+  id           String    @id @default(uuid())
+  workspaceId  String
+  product      String
+  sku          String
+  stockValue   Float     @default(0)
+  quantity     Int       @default(0)
+  reorderPoint Int       @default(15)
+  daysOfStock  Int       @default(30)
+  status       String    // in-stock, low-stock, out-of-stock
+  createdAt    DateTime  @default(now())
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, sku])
+  @@map("inventory_items")
+}
+
+model Risk {
+  id             String    @id @default(uuid())
+  workspaceId    String
+  title          String
+  description    String
+  level          String    // critical, high, medium, low
+  impact         Float     @default(0)
+  evidence       String
+  recommendation String
+  affectedOrders Int?
+  createdAt      DateTime  @default(now())
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("risks")
+}
+
+model Alert {
+  id          String    @id @default(uuid())
+  workspaceId String
+  type        String    // warning, info, success, critical
+  title       String
+  description String
+  action      String?
+  timestamp   String
+  createdAt   DateTime  @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("alerts")
+}
+
+model AuditLog {
+  id           String    @id @default(uuid())
+  workspaceId  String
+  userId       String?
+  action       String
+  resourceType String
+  resourceId   String?
+  details      String    // JSON stringified payload
+  ipAddress    String?
+  timestamp    DateTime  @default(now())
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}

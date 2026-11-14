@@ -2,10 +2,64 @@ import type { Order, Product, FinancialSummary, MarginStatus } from '../../../ty
 
 export class FinancialEngine {
   /**
+   * Safe rounded currency addition/multiplication using integer cents
+   */
+  public static toCents(amount: number): number {
+    return Math.round(amount * 100);
+  }
+
+  public static fromCents(cents: number): number {
+    return Math.round(cents) / 100;
+  }
+
+  /**
+   * Gross Sales = Sum(Unit Price * Quantity)
+   */
+  public static calculateGrossSales(items: Array<{ price: number; quantity: number }>): number {
+    const totalCents = items.reduce((sum, item) => sum + (this.toCents(item.price) * item.quantity), 0);
+    return this.fromCents(totalCents);
+  }
+
+  /**
+   * Net Revenue = Gross Sales - Discounts - Refunds + Shipping Income
+   * Note: Taxes collected on behalf of governments are excluded from business revenue.
+   */
+  public static calculateNetRevenue(params: {
+    grossSales: number;
+    discounts?: number;
+    refunds?: number;
+    shippingIncome?: number;
+    taxesCollected?: number;
+  }): number {
+    const grossCents = this.toCents(params.grossSales);
+    const discCents = this.toCents(params.discounts || 0);
+    const refundCents = this.toCents(params.refunds || 0);
+    const shipCents = this.toCents(params.shippingIncome || 0);
+    const netCents = grossCents - discCents - refundCents + shipCents;
+    return this.fromCents(netCents);
+  }
+
+  /**
+   * Adjust COGS upon refund: only reversed if items are returned to inventory
+   */
+  public static adjustCogsForRefund(params: {
+    initialCogs: number;
+    refundedItemsCogs: number;
+    restocked: boolean;
+  }): number {
+    if (!params.restocked) {
+      return params.initialCogs;
+    }
+    const adjusted = this.toCents(params.initialCogs) - this.toCents(params.refundedItemsCogs);
+    return this.fromCents(Math.max(0, adjusted));
+  }
+
+  /**
    * Gross Profit = Revenue - COGS
    */
   public static calculateGrossProfit(revenue: number, cogs: number): number {
-    return Math.round((revenue - cogs) * 100) / 100;
+    const profitCents = this.toCents(revenue) - this.toCents(cogs);
+    return this.fromCents(profitCents);
   }
 
   /**
@@ -20,8 +74,56 @@ export class FinancialEngine {
     paymentFees?: number;
   }): number {
     const { revenue, cogs, shipping, discount = 0, adSpend = 0, paymentFees = 0 } = params;
-    const profit = revenue - (cogs + shipping + discount + adSpend + paymentFees);
-    return Math.round(profit * 100) / 100;
+    const revCents = this.toCents(revenue);
+    const costCents = this.toCents(cogs) + this.toCents(shipping) + this.toCents(discount) + this.toCents(adSpend) + this.toCents(paymentFees);
+    return this.fromCents(revCents - costCents);
+  }
+
+  /**
+   * Operating Profit = Contribution Profit - Fixed Operating Expenses
+   */
+  public static calculateOperatingProfit(params: {
+    contributionProfit: number;
+    operatingExpenses: number;
+  }): number {
+    const opCents = this.toCents(params.contributionProfit) - this.toCents(params.operatingExpenses);
+    return this.fromCents(opCents);
+  }
+
+  /**
+   * Customer Acquisition Cost (CAC) = Total Ad Spend / New Customers Acquired
+   */
+  public static calculateCac(params: {
+    totalAdSpend: number;
+    newCustomersAcquired: number;
+  }): number {
+    if (params.newCustomersAcquired <= 0) return 0;
+    return this.fromCents(this.toCents(params.totalAdSpend) / params.newCustomersAcquired);
+  }
+
+  /**
+   * Currency Conversion preserving original value & exchange rate
+   */
+  public static convertCurrency(params: {
+    amount: number;
+    fromCurrency: string;
+    toCurrency: string;
+    exchangeRate: number;
+  }): {
+    convertedAmount: number;
+    originalAmount: number;
+    originalCurrency: string;
+    targetCurrency: string;
+    exchangeRate: number;
+  } {
+    const converted = this.fromCents(this.toCents(params.amount) * params.exchangeRate);
+    return {
+      convertedAmount: converted,
+      originalAmount: params.amount,
+      originalCurrency: params.fromCurrency,
+      targetCurrency: params.toCurrency,
+      exchangeRate: params.exchangeRate,
+    };
   }
 
   /**
