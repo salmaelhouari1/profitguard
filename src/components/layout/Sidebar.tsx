@@ -1,13 +1,13 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { cn } from '../../lib/utils'
 import {
   LayoutDashboard, ShoppingCart, Package, Receipt,
   Megaphone, Boxes, AlertTriangle, FileText,
   BrainCircuit, Plug, Settings, ChevronRight,
-  Shield, TrendingUp, Menu, X
+  Shield, TrendingUp, Menu, X, Database
 } from 'lucide-react'
+import { useAppSecurity } from '../../context/SecurityContext'
 
-// ─── Nav structure ─────────────────────────────────────────────────────────
 const navSections = [
   {
     section: 'WORKSPACE',
@@ -56,6 +56,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ currentPage, onNavigate, mobileOpen, onMobileClose }: SidebarProps) {
+  const { currentWorkspace, workspaces, setWorkspaceId } = useAppSecurity()
+
   const handleNav = (path: string) => {
     onNavigate(path)
     onMobileClose()
@@ -96,6 +98,26 @@ export function Sidebar({ currentPage, onNavigate, mobileOpen, onMobileClose }: 
             <X size={16} />
           </button>
         </div>
+
+        {/* Workspace Selector */}
+        {workspaces.length > 1 && (
+          <div className="px-3 pt-3 pb-1">
+            <label className="text-[10px] font-mono tracking-widest text-[#9EC2B4] uppercase px-2 font-bold block mb-1">
+              Active Workspace
+            </label>
+            <select
+              value={currentWorkspace?.id}
+              onChange={(e) => setWorkspaceId(e.target.value)}
+              className="w-full bg-deep-ink-surface border border-deep-ink-border text-white text-xs rounded px-2.5 py-1.5 font-sans focus:outline-none focus:border-electric-lime"
+            >
+              {workspaces.map((w) => (
+                <option key={w.id} value={w.id} className="bg-deep-ink text-white">
+                  {w.name} {w.isDemo ? '(Sample)' : '(Live)'}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
@@ -144,22 +166,35 @@ export function Sidebar({ currentPage, onNavigate, mobileOpen, onMobileClose }: 
           ))}
         </nav>
 
-        {/* Demo mode indicator */}
+        {/* Workspace mode footer card */}
         <div className="mx-3 mb-4 p-3 rounded-md bg-deep-ink-surface border border-deep-ink-border">
-          <div className="flex items-center gap-2 mb-1.5">
-            <span className="w-2 h-2 rounded-full bg-electric-lime animate-pulse" />
-            <p className="text-[11px] font-mono font-bold tracking-wider text-electric-lime uppercase">Demo Mode</p>
-          </div>
-          <p className="text-[11px] text-[#A6C9BC] leading-relaxed">
-            Connect Shopify to replace demo data with live store data.
-          </p>
+          {currentWorkspace?.isDemo ? (
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <Database className="w-3.5 h-3.5 text-electric-lime" />
+                <p className="text-[11px] font-mono font-bold tracking-wider text-electric-lime uppercase">Sample Workspace</p>
+              </div>
+              <p className="text-[11px] text-[#A6C9BC] leading-relaxed">
+                Viewing sample store data. Switch or create a live workspace for real business metrics.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="w-2 h-2 rounded-full bg-electric-lime" />
+                <p className="text-[11px] font-mono font-bold tracking-wider text-white uppercase">Live Workspace</p>
+              </div>
+              <p className="text-[11px] text-[#A6C9BC] leading-relaxed">
+                Connect Shopify in Integrations to sync real order transactions.
+              </p>
+            </div>
+          )}
         </div>
       </aside>
     </>
   )
 }
 
-// ─── Top Navigation Bar ────────────────────────────────────────────────────
 interface TopNavProps {
   title: string
   subtitle?: string
@@ -168,6 +203,8 @@ interface TopNavProps {
 }
 
 export function TopNav({ title, subtitle, onMenuToggle, actions }: TopNavProps) {
+  const { currentWorkspace } = useAppSecurity()
+
   return (
     <header className="h-14 bg-white border-b border-border shadow-card flex items-center px-5 gap-4 flex-shrink-0">
       {/* Mobile menu button */}
@@ -192,10 +229,19 @@ export function TopNav({ title, subtitle, onMenuToggle, actions }: TopNavProps) 
 
       <div className="flex items-center gap-3">
         {actions}
-        {/* Integration status */}
+        {/* Workspace/Integration status */}
         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded bg-oyster-100 border border-border text-xs font-mono font-medium text-ink">
-          <span className="w-2 h-2 rounded-full bg-clay" />
-          Shopify not connected
+          {currentWorkspace?.isDemo ? (
+            <>
+              <span className="w-2 h-2 rounded-full bg-sage" />
+              <span>Sample Mode (Read-Only)</span>
+            </>
+          ) : (
+            <>
+              <span className="w-2 h-2 rounded-full bg-clay" />
+              <span>Shopify Not Connected</span>
+            </>
+          )}
         </div>
       </div>
     </header>
