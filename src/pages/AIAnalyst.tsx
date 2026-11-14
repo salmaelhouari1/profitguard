@@ -47,7 +47,7 @@ export function AIAnalystPage({ onNavigate }: AIAnalystPageProps) {
     if (!q) return
     setInput('')
 
-    const userMsg: Message = { id: Date.now().toString(), role: 'user', content: q, timestamp: new Date().toLocaleTimeString() }
+    const userMsg: Message = { id: crypto.randomUUID(), role: 'user', content: q, timestamp: new Date().toLocaleTimeString() }
     setMessages(prev => [...prev, userMsg])
     setIsTyping(true)
 
@@ -56,7 +56,7 @@ export function AIAnalystPage({ onNavigate }: AIAnalystPageProps) {
       try {
         const result = api.queryAIAnalyst(session, q)
         const assistantMsg: Message = {
-          id: (Date.now() + 1).toString(),
+          id: crypto.randomUUID(),
           role: 'assistant',
           content: result.answer,
           timestamp: new Date().toLocaleTimeString(),
@@ -65,7 +65,7 @@ export function AIAnalystPage({ onNavigate }: AIAnalystPageProps) {
         setMessages(prev => [...prev, assistantMsg])
       } catch (err) {
         const errorMsg: Message = {
-          id: (Date.now() + 1).toString(),
+          id: crypto.randomUUID(),
           role: 'assistant',
           content: `Security Alert: ${err instanceof Error ? err.message : 'Unable to complete query due to security guardrail.'}`,
           timestamp: new Date().toLocaleTimeString(),

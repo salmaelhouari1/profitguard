@@ -12,7 +12,7 @@ export class AuditService {
     ipAddress: string = '127.0.0.1'
   ): AuditLog {
     const entry: AuditLog = {
-      id: `audit_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      id: crypto.randomUUID(),
       workspaceId,
       userId,
       action,

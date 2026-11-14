@@ -29,7 +29,7 @@ export class TenancyService {
     AuthGuard.assertPermission(params.userRole, 'org:manage');
 
     const newWs: Workspace = {
-      id: `ws_live_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      id: crypto.randomUUID(),
       organizationId: params.orgId,
       name: params.name,
       isDemo: false,
