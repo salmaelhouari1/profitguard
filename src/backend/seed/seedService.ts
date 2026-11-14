@@ -134,4 +134,84 @@ export class SeedService {
 
     return { organization, workspace, user, membership, store };
   }
+
+  /**
+   * Explicit opt-in helper: Creates an isolated, read-only sample workspace for an existing organization
+   */
+  public static seedOptInSampleWorkspace(orgId: string, userId: string): Workspace {
+    const state = db.getState();
+    const workspaceId = `ws_sample_${crypto.randomUUID().slice(0, 8)}`;
+
+    const workspace: Workspace = {
+      id: workspaceId,
+      organizationId: orgId,
+      name: 'Demo Sample Store (Read-Only)',
+      isDemo: true,
+      currency: 'USD',
+      timezone: 'America/New_York',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    state.workspaces.set(workspace.id, workspace);
+
+    const store: Store = {
+      id: `store_sample_${crypto.randomUUID().slice(0, 8)}`,
+      workspaceId: workspace.id,
+      platform: 'demo_simulation',
+      storeName: 'Demo Sample Store',
+      storeDomain: 'sample-store.myshopify.com',
+      currency: 'USD',
+      status: 'active',
+      hasCredentials: false,
+      lastSyncedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    state.stores.set(store.id, store);
+
+    const normalizedOrders = demoOrders.map((o) => {
+      const calculatedProfit = o.marginStatus === 'missing'
+        ? 0
+        : FinancialEngine.calculateContributionProfit({
+            revenue: o.revenue,
+            cogs: o.cogs,
+            shipping: o.shipping,
+            discount: o.discount,
+          });
+      const calculatedMargin = o.marginStatus === 'missing'
+        ? 0
+        : FinancialEngine.calculateMargin(calculatedProfit, o.revenue);
+      const calculatedStatus = FinancialEngine.determineMarginStatus({
+        cogs: o.cogs,
+        margin: calculatedMargin,
+      });
+
+      return {
+        ...o,
+        profit: calculatedProfit,
+        margin: calculatedMargin,
+        marginStatus: calculatedStatus,
+      };
+    });
+
+    state.orders.set(workspace.id, normalizedOrders);
+    state.products.set(workspace.id, demoProducts);
+    state.expenses.set(workspace.id, demoExpenses);
+    state.marketingChannels.set(workspace.id, demoMarketing);
+    state.inventoryItems.set(workspace.id, demoInventory);
+    state.risks.set(workspace.id, demoRisks);
+    state.alerts.set(workspace.id, demoAlerts);
+    state.trendData.set(workspace.id, demoTrends);
+
+    AuditService.log(
+      workspace.id,
+      'workspace:opt_in_sample_created',
+      'workspace',
+      { workspaceName: workspace.name, isDemo: true, ordersCount: normalizedOrders.length },
+      userId,
+      workspace.id
+    );
+
+    return workspace;
+  }
 }
