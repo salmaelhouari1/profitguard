@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { cn } from '../lib/utils'
-import { DemoBanner, SectionLabel, Card, Button } from '../components/ui'
+import { SectionLabel, Card, Button } from '../components/ui'
 import { BrainCircuit, Send, User, ShieldCheck } from 'lucide-react'
 import { useAppSecurity } from '../context/SecurityContext'
 import { api } from '../backend/api'
@@ -84,8 +84,7 @@ export function AIAnalystPage({ onNavigate }: AIAnalystPageProps) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-oyster">
       <div className="px-6 py-5 border-b border-border bg-white flex-shrink-0">
-        <DemoBanner />
-        <div className="mt-3">
+        <div>
           <SectionLabel>Intelligence</SectionLabel>
           <h1 className="font-display text-2xl font-bold text-ink mt-1">AI Analyst</h1>
           <p className="text-sm text-ink-secondary mt-1">
